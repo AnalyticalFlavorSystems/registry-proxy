@@ -1,0 +1,5 @@
+registry.db
+*.*.sw*
+registry-proxy
+build.sh
+run.sh
