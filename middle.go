@@ -43,7 +43,7 @@ func setHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func (c *AppContext) basicauth(next http.Handler) http.Handler {
+func (c *ProxyContext) basicauth(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header["Authorization"]
 		if len(authHeader) <= 0 {
@@ -104,6 +104,23 @@ func recoverHandler(next http.Handler) http.Handler {
 			}
 		}()
 
+		next.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
+}
+func (c *AppContext) authHandler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		// REGULAR SESSION
+		session, err := store.Get(r, "registry")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		if session.Values["username"] == nil {
+			c.loginHandler(w, r)
+			return
+		}
 		next.ServeHTTP(w, r)
 	}
 

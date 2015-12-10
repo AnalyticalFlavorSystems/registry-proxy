@@ -3,27 +3,33 @@ package main
 import (
 	"github.com/boltdb/bolt"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	"github.com/justinas/alice"
+	"github.com/unrolled/render"
+	"golang.org/x/crypto/bcrypt"
 	"log"
-	"net"
 	"net/http"
-	"net/http/httputil"
 	"os"
-	"time"
 )
 
 var (
 	ENV           string
 	REGISTRY_PORT string
 	REGISTRY_HOST string
+	yield         *render.Render
+	store         sessions.Store
 )
 
 const (
 	PORT = ":5000"
 )
 
-type AppContext struct {
+type ProxyContext struct {
 	db *bolt.DB
+}
+type AppContext struct {
+	db     *bolt.DB
+	layout render.HTMLOptions
 }
 
 func main() {
@@ -33,21 +39,57 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	appC := &AppContext{db}
+	proxyC := &ProxyContext{db}
+	appC := &AppContext{
+		db,
+		render.HTMLOptions{Layout: "layouts/mainLayout"},
+	}
 	r := mux.NewRouter()
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
-	})
+	get := r.Methods("GET").Subrouter()
+	post := r.Methods("POST").Subrouter()
+
+	store = sessions.NewCookieStore([]byte("ndJSfN0wEt1JRrFIxoELEZYXRad2g82l9kYtJjOca23VXK3SvvPbDYuF0bqP"))
 	middleware := alice.New(
 		recoverHandler,
 		loggingHandler,
 		setHeaders,
 		corsHandler,
-		appC.basicauth,
 	)
-	r.Handle("/v2{rest:.*}", middleware.ThenFunc(registry))
-	r.Handle("/ui{rest:.*}", middleware.ThenFunc(ui))
-	r.Handle("/", middleware.ThenFunc(registry))
+	if ENV == "production" {
+		yield = render.New(render.Options{
+			Directory:     "views",
+			Layout:        "layouts/plainLayout",
+			IsDevelopment: false,
+		})
+	} else {
+		yield = render.New(render.Options{
+			Directory:     "views",
+			Layout:        "layouts/plainLayout",
+			IsDevelopment: true,
+		})
+	}
+
+	proxyMiddleware := middleware.Append(proxyC.basicauth)
+	appMiddleware := middleware.Append(appC.authHandler)
+
+	// registry
+	r.Handle("/v2{rest:.*}", proxyMiddleware.ThenFunc(registry))
+	r.Handle("/", proxyMiddleware.ThenFunc(registry))
+
+	// GET assets
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets/"))))
+
+	get.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("OK"))
+	})
+
+	// registry ui
+	get.Handle("/login", middleware.ThenFunc(appC.loginHandler))
+	get.Handle("/ui", appMiddleware.ThenFunc(appC.ui))
+	get.Handle("/ui/{name}", appMiddleware.ThenFunc(appC.repoShow))
+
+	// post
+	post.Handle("/login", middleware.ThenFunc(appC.loginPostHandler))
 
 	http.Handle("/", r)
 	log.Println("[RUNNING] Serving on " + PORT)
@@ -65,26 +107,35 @@ func init() {
 		REGISTRY_PORT = "5001"
 	}
 }
-func registry(w http.ResponseWriter, r *http.Request) {
-	defer timeTrack(time.Now(), "registry")
-	director := func(req *http.Request) {
-		reverse := REGISTRY_HOST + ":" + REGISTRY_PORT
-		req = r
-		req.URL.Scheme = "http"
-		req.URL.Host = reverse
+
+func SetPassword(password string) []byte {
+	hpass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
 	}
-	roundTripper := &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout:   900 * time.Second,
-			KeepAlive: 65 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-	}
-	proxy := &httputil.ReverseProxy{
-		Director:  director,
-		Transport: roundTripper,
-	}
-	proxy.ServeHTTP(w, r)
+	return hpass
 }
-func ui(w http.ResponseWriter, r *http.Request) {
+
+func (c *AppContext) Login(username, password string) (bool, error) {
+	var HashedPassword []byte
+
+	err := c.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("auth"))
+		HashedPassword = b.Get([]byte(username))
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// Test if exists
+	if string(HashedPassword) == "" {
+		return false, nil
+	}
+
+	err = bcrypt.CompareHashAndPassword(HashedPassword, []byte(password))
+	if err != nil {
+		return false, err
+	}
+	return true, err
 }

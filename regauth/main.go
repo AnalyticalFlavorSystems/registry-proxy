@@ -6,6 +6,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/codegangsta/cli"
 	"github.com/mewbak/gopass"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"os"
 )
@@ -52,17 +53,25 @@ func addUser(c *cli.Context) {
 		log.Fatal(err)
 	}
 	defer db.Close()
+	password := SetPassword(pwd)
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("auth"))
 		if err != nil {
 			return err
 		}
-		err = b.Put([]byte(user), []byte(pwd))
+		err = b.Put([]byte(user), password)
 		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Successful")
+}
+func SetPassword(password string) []byte {
+	hpass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+	return hpass
 }
