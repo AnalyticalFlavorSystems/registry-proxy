@@ -35,7 +35,7 @@ type AppContext struct {
 func main() {
 	log.Println("[STARTING SERVER]")
 
-	db, err := bolt.Open("registry.db", 0666, &bolt.Options{ReadOnly: true})
+	db, err := bolt.Open("db/registry.db", 0666, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -86,7 +86,11 @@ func main() {
 	// registry ui
 	get.Handle("/login", middleware.ThenFunc(appC.loginHandler))
 	get.Handle("/ui", appMiddleware.ThenFunc(appC.ui))
-	get.Handle("/ui/{name}", appMiddleware.ThenFunc(appC.repoShow))
+	get.Handle("/ui/repos/{name}", appMiddleware.ThenFunc(appC.repoShow))
+	get.Handle("/ui/users", appMiddleware.ThenFunc(appC.users))
+	get.Handle("/ui/users/new", appMiddleware.ThenFunc(appC.newUser))
+	post.Handle("/ui/users/{name}/destroy", appMiddleware.ThenFunc(appC.destroyUser))
+	post.Handle("/ui/users/create", appMiddleware.ThenFunc(appC.createUser))
 
 	// post
 	post.Handle("/login", middleware.ThenFunc(appC.loginPostHandler))

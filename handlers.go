@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/boltdb/bolt"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
@@ -134,4 +135,84 @@ func (c *AppContext) repoShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	yield.HTML(w, http.StatusOK, "show", ctx, c.layout)
+}
+func (c *AppContext) users(w http.ResponseWriter, r *http.Request) {
+	var users []string
+	err := c.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("auth"))
+		b.ForEach(func(k, v []byte) error {
+			users = append(users, string(k))
+			return nil
+		})
+		return nil
+	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	context.Set(r, "users", users)
+	ctx, ok := context.GetAllOk(r)
+	if !ok {
+		return
+	}
+	yield.HTML(w, http.StatusOK, "users/index", ctx, c.layout)
+}
+func (c *AppContext) destroyUser(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	err := c.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("auth"))
+		b.Delete([]byte(name))
+		return nil
+	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	http.Redirect(w, r, "/ui/users", 302)
+}
+func (c *AppContext) newUser(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := context.GetAllOk(r)
+	if !ok {
+		return
+	}
+	yield.HTML(w, http.StatusOK, "users/new", ctx, c.layout)
+}
+func (c *AppContext) createUser(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	if r.Form["username"] == nil {
+		http.Redirect(w, r, "/ui/users/new", 302)
+		return
+	}
+	username := r.Form["username"][0]
+	if r.Form["password"] == nil {
+		http.Redirect(w, r, "/ui/users/new", 302)
+		return
+	}
+	password := r.Form["password"][0]
+	if r.Form["confirm_password"] == nil {
+		http.Redirect(w, r, "/ui/users/new", 302)
+		return
+	}
+	confirmPassword := r.Form["confirm_password"][0]
+
+	if password != confirmPassword {
+		log.Println("passwords didn't match")
+		http.Redirect(w, r, "/ui/users/new", 302)
+		return
+	}
+	hashedPassword := SetPassword(password)
+	err := c.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("auth"))
+		b, err := tx.CreateBucketIfNotExists([]byte("auth"))
+		if err != nil {
+			return err
+		}
+		err = b.Put([]byte(username), hashedPassword)
+		return nil
+	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	http.Redirect(w, r, "/ui/users", 302)
 }

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"github.com/boltdb/bolt"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -75,11 +75,13 @@ func (c *ProxyContext) basicauth(next http.Handler) http.Handler {
 			return nil
 		})
 
-		if bytes.Equal(pwd, []byte(userpass[1])) {
-			next.ServeHTTP(w, r)
-		} else {
+		err = bcrypt.CompareHashAndPassword(pwd, []byte(userpass[1]))
+		if err != nil {
 			unauthorized(w)
+		} else {
+			next.ServeHTTP(w, r)
 		}
+
 	}
 	return http.HandlerFunc(fn)
 }

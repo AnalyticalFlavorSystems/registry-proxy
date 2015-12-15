@@ -25,7 +25,7 @@ func main() {
 	app.Run(os.Args)
 }
 func addUser(c *cli.Context) {
-	if _, err := os.Stat("registry.db"); os.IsNotExist(err) {
+	if _, err := os.Stat("db/registry.db"); os.IsNotExist(err) {
 		log.Fatal("cant't find registry.db")
 	}
 

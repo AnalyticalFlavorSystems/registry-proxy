@@ -2,11 +2,11 @@
   <div class="col-md-12">
     <div class="row">
       <div class="col-md-8 col-md-offset-2">
-        <h3 class="text-center">Repositories</h3>
+        <h3 class="text-center">Users</h3>
       </div>
       <div class="col-md-2">
         <br>
-        <a class="btn btn-sm btn-info" href="/ui/users">View Users</a>
+        <a class="btn btn-sm btn-info" href="/ui/users/new">New User</a>
       </div>
     </div>
     <br />
@@ -19,10 +19,10 @@
           </tr>
         </thead>
         <tbody>
-          {{range .repositories}}
+          {{range .users}}
           <tr>
             <td>{{.}}</td>
-            <td class="text-center"><a class="btn btn-sm btn-info" href="/ui/repos/{{.}}">View</a></td>
+            <td class="text-center"><form action="/ui/users/{{.}}/destroy" method="POST"><button class="btn btn-sm btn-danger">Delete</button></form></td>
           </tr>
           {{end}}
         </tbody>
