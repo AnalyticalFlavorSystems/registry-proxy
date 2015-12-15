@@ -1,4 +1,5 @@
 *.*.sw*
+build
 registry-proxy
 build.sh
 run.sh

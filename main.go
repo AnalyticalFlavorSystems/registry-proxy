@@ -106,7 +106,7 @@ func init() {
 	if REGISTRY_HOST_ADDR == "" {
 		REGISTRY_HOST_ADDR = "localhost"
 	}
-	REGISTRY_PORT_ADDR = os.Getenv("REGISTRY_PORT")
+	REGISTRY_PORT_ADDR = os.Getenv("REGISTRY_PORT_ADDR")
 	if REGISTRY_PORT_ADDR == "" {
 		REGISTRY_PORT_ADDR = "5000"
 	}
