@@ -17,7 +17,7 @@ import (
 
 func registry(w http.ResponseWriter, r *http.Request) {
 	director := func(req *http.Request) {
-		reverse := REGISTRY_HOST + ":" + REGISTRY_PORT
+		reverse := REGISTRY_HOST_ADDR + ":" + REGISTRY_PORT_ADDR
 		req = r
 		req.URL.Scheme = "http"
 		req.URL.Host = reverse
@@ -77,7 +77,9 @@ func (c *AppContext) loginPostHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", 302)
 }
 func (c *AppContext) ui(w http.ResponseWriter, r *http.Request) {
-	url := fmt.Sprintf("http://%s:%s/v2/_catalog", REGISTRY_HOST, REGISTRY_PORT)
+	log.Println(REGISTRY_HOST_ADDR)
+	log.Println(REGISTRY_PORT_ADDR)
+	url := fmt.Sprintf("http://%s:%s/v2/_catalog", REGISTRY_HOST_ADDR, REGISTRY_PORT_ADDR)
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Println(err)
@@ -107,8 +109,8 @@ func (c *AppContext) ui(w http.ResponseWriter, r *http.Request) {
 func (c *AppContext) repoShow(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	url := fmt.Sprintf("http://%s:%s/v2/%s/tags/list",
-		REGISTRY_HOST,
-		REGISTRY_PORT,
+		REGISTRY_HOST_ADDR,
+		REGISTRY_PORT_ADDR,
 		name)
 	resp, err := http.Get(url)
 	if err != nil {

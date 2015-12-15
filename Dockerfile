@@ -9,5 +9,5 @@ WORKDIR /app
 CMD ["./registry-proxy"]
 ADD assets/ /app/assets
 ADD views/ /app/views
-ADD registry.db /app/db/
+ADD db/ /app/db
 ADD registry-proxy /app/registry-proxy

@@ -13,15 +13,15 @@ import (
 )
 
 var (
-	ENV           string
-	REGISTRY_PORT string
-	REGISTRY_HOST string
-	yield         *render.Render
-	store         sessions.Store
+	ENV                string
+	REGISTRY_PORT_ADDR string
+	REGISTRY_HOST_ADDR string
+	yield              *render.Render
+	store              sessions.Store
 )
 
 const (
-	PORT = ":5000"
+	PORT = ":3000"
 )
 
 type ProxyContext struct {
@@ -102,13 +102,13 @@ func main() {
 }
 func init() {
 	ENV = os.Getenv("GOENV")
-	REGISTRY_HOST = os.Getenv("REGISTRY_HOST")
-	if REGISTRY_HOST == "" {
-		REGISTRY_HOST = "localhost"
+	REGISTRY_HOST_ADDR = os.Getenv("REGISTRY_HOST_ADDR")
+	if REGISTRY_HOST_ADDR == "" {
+		REGISTRY_HOST_ADDR = "localhost"
 	}
-	REGISTRY_PORT = os.Getenv("REGISTRY_PORT")
-	if REGISTRY_PORT == "" {
-		REGISTRY_PORT = "5001"
+	REGISTRY_PORT_ADDR = os.Getenv("REGISTRY_PORT")
+	if REGISTRY_PORT_ADDR == "" {
+		REGISTRY_PORT_ADDR = "5000"
 	}
 }
 
